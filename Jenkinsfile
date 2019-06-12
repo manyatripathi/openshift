@@ -188,7 +188,7 @@ if(env.PT == 'True')
    	}
 	stage('Test - UAT Application')
 	 {
-		      sh 'oc apply -f Orchestration/deployment-uat.yaml -n=${APP_NAME}-uat-apps'
+		sh 'oc apply -f Orchestration/deployment-uat.yaml -n=${APP_NAME}-uat-apps'
        		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-uat-apps'
 	 }
 	stage('Tagging Image for Pre-Prod')
@@ -197,7 +197,7 @@ if(env.PT == 'True')
    	}
 	stage('Test - Preprod Application')
 	 {
-		      sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
+		sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
        		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-preprod-apps'
 	 }
 	     

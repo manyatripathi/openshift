@@ -18,6 +18,7 @@ def readProperties()
 	env.TESTING = property.TESTING
 	env.QA = property.QA
 	env.PT = property.PT
+	env.mailrecipent = property.mailrecipent
 	
     
 }
@@ -55,6 +56,7 @@ node
    def MAVEN_HOME = tool "MAVEN_HOME"
    def JAVA_HOME = tool "JAVA_HOME"
    env.PATH="${env.PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin"
+	try{
    stage('Checkout')
    {
        readProperties()
@@ -200,7 +202,11 @@ if(env.PT == 'True')
 		sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
        		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-preprod-apps'
 	 }
-	     
+	}
+	catch(e){
+		echo "Pipeline has failed"
+		emailext body: "${env.BUILD_URL} has result ${currentBuild.result}", subject: "Status of pipeline: ${currentBuild.fullDisplayName}", to: '${mailrecipent}'
+	}
 	
  
 }

@@ -41,7 +41,6 @@ openshift.withCluster() {
 }
 }
 
-
 podTemplate(cloud:'openshift',label: 'selenium', 
   containers: [
     containerTemplate(
@@ -67,7 +66,7 @@ node
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:pt-apps --dry-run -o yaml >> Orchestration/deployment-pt.yaml'   
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:uat-apps --dry-run -o yaml >> Orchestration/deployment-uat.yaml'	   
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:preprod-apps --dry-run -o yaml >> Orchestration/deployment-preprod.yaml'
-	   sh 'docker login -u ${user} -p '  
+       sh 'docker login -u $User -p "$(oc whoami -t)" docker-registry-default.40.71.221.144.nip.io' 
    }
 
    stage('Initial Setup')
@@ -111,7 +110,10 @@ node
    }
    stage('Tagging Image for Dev')
    {
-       openshiftTag(namespace: '$APP_NAME-dev-apps', srcStream: '$MS_NAME', srcTag: 'latest', destStream: '$MS_NAME', destTag: 'dev-apps')
+	sh'docker pull docker-registry.default.svc:5000/$APP_NAME-dev-apps/$MS_NAME'
+	sh'docker tag  docker-registry.default.svc:5000/$APP_NAME-dev-apps/$MS_NAME:latest 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+	sh'docker push 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+	   
    }
    stage('Dev - Deploy Application')
    {
@@ -122,7 +124,8 @@ node
 	
    stage('Tagging Image for Testing')
    {
-       openshiftTag(namespace: '$APP_NAME-dev-apps', srcStream: '$MS_NAME', srcTag: 'latest', destStream: '$MS_NAME', destTag: 'test-apps')
+       sh'docker tag  13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:dev-apps 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+       sh'docker push 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:test-apps'
    }
    if(env.TESTING == 'True')
    {	
@@ -168,6 +171,8 @@ if(env.QA == 'True')
 stage('Tagging Image for PT')
    {
         openshiftTag(namespace: '$APP_NAME-dev-apps', srcStream: '$MS_NAME', srcTag: 'latest', destStream: '$MS_NAME', destTag: 'pt-apps')
+	  sh'docker tag  13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:test-apps 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+       sh'docker push 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:pt-apps'  
    }
 if(env.PT == 'True')
    {	
@@ -188,6 +193,8 @@ if(env.PT == 'True')
 	stage('Tagging Image for UAT')
    	{
        		openshiftTag(namespace: '$APP_NAME-dev-apps', srcStream: '$MS_NAME', srcTag: 'latest', destStream: '$MS_NAME', destTag: 'uat-apps')
+		sh'docker tag  13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:pt-apps 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+       		sh'docker push 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
    	}
 	stage('Test - UAT Application')
 	 {
@@ -197,6 +204,8 @@ if(env.PT == 'True')
 	stage('Tagging Image for Pre-Prod')
    	{
        		openshiftTag(namespace: '$APP_NAME-dev-apps', srcStream: '$MS_NAME', srcTag: 'latest', destStream: '$MS_NAME', destTag: 'preprod-apps')
+		sh'docker tag  13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:uat-apps 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
+       		sh'docker push 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
    	}
 	stage('Test - Preprod Application')
 	 {

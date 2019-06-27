@@ -61,12 +61,12 @@ node
    {
        readProperties()
        checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:dev-apps --dry-run -o yaml >> Orchestration/deployment-dev.yaml'
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:test-apps --dry-run -o yaml >> Orchestration/deployment-test.yaml'
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:qa-apps --dry-run -o yaml >> Orchestration/deployment-qa.yaml'
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:pt-apps --dry-run -o yaml >> Orchestration/deployment-pt.yaml'   
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:uat-apps --dry-run -o yaml >> Orchestration/deployment-uat.yaml'	   
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:preprod-apps --dry-run -o yaml >> Orchestration/deployment-preprod.yaml'
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=13.89.217.239:5000/$APP_NAME-dev-apps/${MS_NAME}:dev-apps --dry-run -o yaml >> Orchestration/deployment-dev.yaml'
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=13.89.217.239:5000/$APP_NAME-dev-apps/${MS_NAME}:test-apps --dry-run -o yaml >> Orchestration/deployment-test.yaml'
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=13.89.217.239:5000/$APP_NAME-dev-apps/${MS_NAME}:qa-apps --dry-run -o yaml >> Orchestration/deployment-qa.yaml'
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=13.89.217.239:5000/$APP_NAME-dev-apps/${MS_NAME}:pt-apps --dry-run -o yaml >> Orchestration/deployment-pt.yaml'   
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=13.89.217.239:5000/$APP_NAME-dev-apps/${MS_NAME}:uat-apps --dry-run -o yaml >> Orchestration/deployment-uat.yaml'	   
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=13.89.217.239:5000/$APP_NAME-dev-apps/${MS_NAME}:preprod-apps --dry-run -o yaml >> Orchestration/deployment-preprod.yaml'
        sh 'docker login -u $User -p "$(oc whoami -t)" docker-registry-default.40.71.221.144.nip.io' 
    }
 

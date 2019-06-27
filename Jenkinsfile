@@ -66,7 +66,8 @@ node
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:qa-apps --dry-run -o yaml >> Orchestration/deployment-qa.yaml'
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:pt-apps --dry-run -o yaml >> Orchestration/deployment-pt.yaml'   
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:uat-apps --dry-run -o yaml >> Orchestration/deployment-uat.yaml'	   
-       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:preprod-apps --dry-run -o yaml >> Orchestration/deployment-preprod.yaml'   
+       sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=docker-registry.default.svc:5000/$APP_NAME-dev-apps/${MS_NAME}:preprod-apps --dry-run -o yaml >> Orchestration/deployment-preprod.yaml'
+	   sh 'docker login -u ${user} -p '  
    }
 
    stage('Initial Setup')

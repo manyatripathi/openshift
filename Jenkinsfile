@@ -18,6 +18,7 @@ def readProperties()
 	env.TESTING = property.TESTING
 	env.QA = property.QA
 	env.PT = property.PT
+	env.User = property.User
 	env.mailrecipent = property.mailrecipent
 	
     
@@ -123,7 +124,7 @@ node
    }
 	
    stage('Tagging Image for Testing')
-   {
+   { 
        sh'docker tag  13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:dev-apps 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:test-apps'
        sh'docker push 13.89.217.239:5000/$APP_NAME-dev-apps/$MS_NAME:test-apps'
    }

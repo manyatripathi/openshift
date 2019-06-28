@@ -42,7 +42,7 @@ openshift.withCluster() {
         }
 }
 }
-
+def FAILED_STAGE
 podTemplate(cloud:'openshift',label: 'selenium', 
   containers: [
     containerTemplate(
@@ -60,6 +60,7 @@ node
 	try{
    stage('Checkout')
    {
+       FAILED_STAGE=env.STAGE_NAME
        readProperties()
        checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=${DOCKER_REGISTRY}/$APP_NAME-dev-apps/${MS_NAME}:dev-apps --dry-run -o yaml >> Orchestration/deployment-dev.yaml'
@@ -73,12 +74,14 @@ node
 
    stage('Initial Setup')
    {
+	FAILED_STAGE=env.STAGE_NAME
        sh 'mvn clean compile'
    }
    if(env.UNIT_TESTING == 'True')
    {
         stage('Unit Testing')
         {
+		FAILED_STAGE=env.STAGE_NAME
               sh 'mvn test'
         }
    }
@@ -86,6 +89,7 @@ node
    {
         stage('Code Coverage')
         {
+		FAILED_STAGE=env.STAGE_NAME
         sh 'mvn package'
         }
    }
@@ -93,6 +97,7 @@ node
    {
         stage('Code Quality Analysis')
         {
+		FAILED_STAGE=env.STAGE_NAME
               sh 'mvn sonar:sonar -Dsonar.host.url="${SONAR_HOST_URL}"'
         }
    }
@@ -100,6 +105,7 @@ node
   {
       stage('Security Testing')
       {
+	      FAILED_STAGE=env.STAGE_NAME
         sh 'mvn findbugs:findbugs'
       }	
   }
@@ -108,10 +114,12 @@ node
 
    stage('Dev - Build Application')
    {
+	   FAILED_STAGE=env.STAGE_NAME
        buildApp("${APP_NAME}-dev-apps", "${MS_NAME}")
    }
    stage('Tagging Image for Dev')
    {
+	   FAILED_STAGE=env.STAGE_NAME
 	sh'docker pull docker-registry.default.svc:5000/$APP_NAME-dev-apps/$MS_NAME'
 	sh'docker tag  docker-registry.default.svc:5000/$APP_NAME-dev-apps/$MS_NAME:latest ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
 	sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
@@ -119,6 +127,7 @@ node
    }
    stage('Dev - Deploy Application')
    {
+	   FAILED_STAGE=env.STAGE_NAME
        sh 'oc apply -f Orchestration/deployment-dev.yaml -n=${APP_NAME}-dev-apps'
        sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-dev-apps'
        
@@ -126,6 +135,7 @@ node
 	
    stage('Tagging Image for Testing')
    { 
+	   FAILED_STAGE=env.STAGE_NAME
        sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
        sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
    }
@@ -133,6 +143,7 @@ node
    {	
        stage('Test - Deploy Application')
        {
+	       FAILED_STAGE=env.STAGE_NAME
               sh 'oc apply -f Orchestration/deployment-test.yaml -n=${APP_NAME}-test-apps'
               sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-test-apps'
        }
@@ -142,8 +153,10 @@ node
 
           stage('Integration Testing')
           {
+		  FAILED_STAGE=env.STAGE_NAME
               container('jnlp')
               {
+		      
                    checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
                    sh 'mvn integration-test'
               }
@@ -155,6 +168,7 @@ if(env.QA == 'True')
    {	
        stage('Test - Deploy Application')
        {
+	       FAILED_STAGE=env.STAGE_NAME
                sh 'oc apply -f Orchestration/deployment-qa.yaml -n=${APP_NAME}-qa-apps'
                sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-qa-apps'
        }
@@ -162,6 +176,7 @@ if(env.QA == 'True')
        {
             stage('Integration Testing')
             {
+		    FAILED_STAGE=env.STAGE_NAME
                 container('jnlp')
                 {
                      checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
@@ -172,6 +187,7 @@ if(env.QA == 'True')
     }
 stage('Tagging Image for PT')
   {
+	  FAILED_STAGE=env.STAGE_NAME
        sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
        sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'  
    }
@@ -180,12 +196,14 @@ if(env.PT == 'True')
 
         stage('Test - Deploy Application')
          {
+		 FAILED_STAGE=env.STAGE_NAME
                 sh 'oc apply -f Orchestration/deployment-pt.yaml -n=${APP_NAME}-pt-apps'
                 sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-pt-apps'
          }
 
         stage('Performance Testing')
         {
+		FAILED_STAGE=env.STAGE_NAME
                 sh 'mvn verify'
         }
 	     
@@ -193,21 +211,25 @@ if(env.PT == 'True')
 
 	stage('Tagging Image for UAT')
    	{
+		FAILED_STAGE=env.STAGE_NAME
 		sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
        		sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
    	}
 	stage('Test - UAT Application')
 	 {
+		 FAILED_STAGE=env.STAGE_NAME
 		sh 'oc apply -f Orchestration/deployment-uat.yaml -n=${APP_NAME}-uat-apps'
        		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-uat-apps'
 	 }
 	stage('Tagging Image for Pre-Prod')
    	{
+		FAILED_STAGE=env.STAGE_NAME
 		sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
        		sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
    	}
 	stage('Test - Preprod Application')
 	 {
+		 FAILED_STAGE=env.STAGE_NAME
 		sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
        		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-preprod-apps'
 	 }
@@ -215,6 +237,7 @@ if(env.PT == 'True')
 	catch(e){
 		echo "Pipeline has failed"
 		emailext body: "${env.BUILD_URL} has result ${currentBuild.result} at stage ${FAILED_STAGE} with error" + e.toString(), subject: "Failure of pipeline: ${currentBuild.fullDisplayName}", to: '${mailrecipent}'
+		throw e
 	}
 	
  

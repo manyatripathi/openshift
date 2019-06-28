@@ -214,7 +214,7 @@ if(env.PT == 'True')
 	}
 	catch(e){
 		echo "Pipeline has failed"
-		emailext body: "${env.BUILD_URL} has result ${currentBuild.result}", subject: "Status of pipeline: ${currentBuild.fullDisplayName}", to: '${mailrecipent}'
+		emailext body: "${env.BUILD_URL} has result ${currentBuild.result} at stage ${FAILED_STAGE} with error" + e.toString(), subject: "Failure of pipeline: ${currentBuild.fullDisplayName}", to: '${mailrecipent}'
 	}
 	
  

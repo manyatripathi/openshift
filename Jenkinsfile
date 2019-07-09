@@ -96,7 +96,7 @@ node
         stage('Code Coverage')
         {
 		FAILED_STAGE=env.STAGE_NAME
-        sh 'mvn package'
+        sh 'mvn cobertura:cobertura'
         }
    }
    if(env.CODE_QUALITY == 'True')

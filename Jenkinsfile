@@ -4,16 +4,16 @@ def readProperties()
 	def properties_file_path = "${workspace}" + "@script/properties.yml"
 	def property = readYaml file: properties_file_path
 	env.APP_NAME = property.APP_NAME
-        env.MS_NAME = property.MS_NAME
-        env.BRANCH = property.BRANCH
-        env.GIT_SOURCE_URL = property.GIT_SOURCE_URL
+    env.MS_NAME = property.MS_NAME
+    env.BRANCH = property.BRANCH
+    env.GIT_SOURCE_URL = property.GIT_SOURCE_URL
 	env.GIT_CREDENTIALS = property.GIT_CREDENTIALS
-        env.SONAR_HOST_URL = property.SONAR_HOST_URL
-        env.CODE_QUALITY = property.CODE_QUALITY
-        env.UNIT_TESTING = property.UNIT_TESTING
-        env.CODE_COVERAGE = property.CODE_COVERAGE
-        env.FUNCTIONAL_TESTING = property.FUNCTIONAL_TESTING
-        env.SECURITY_TESTING = property.SECURITY_TESTING
+    env.SONAR_HOST_URL = property.SONAR_HOST_URL
+    env.CODE_QUALITY = property.CODE_QUALITY
+    env.UNIT_TESTING = property.UNIT_TESTING
+    env.CODE_COVERAGE = property.CODE_COVERAGE
+    env.FUNCTIONAL_TESTING = property.FUNCTIONAL_TESTING
+    env.SECURITY_TESTING = property.SECURITY_TESTING
 	env.PERFORMANCE_TESTING = property.PERFORMANCE_TESTING
 	env.TESTING = property.TESTING
 	env.QA = property.QA
@@ -52,11 +52,12 @@ podTemplate(cloud:'openshift',label: 'selenium',
       args: '${computer.jnlpmac} ${computer.name}'
     ),
 	 containerTemplate(
-      name: 'jnlp',
-      image: 'jenkinsci/slave',
+      name: 'docker',
+      image: 'manya97/jenkins_tryout',
       alwaysPullImage: true,
-      args: '${computer.jnlpmac} ${computer.name}'
-    )] )
+      args: '${computer.jnlpmac} ${computer.name}',
+      ttyEnabled: true
+    )],volumes: [hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock'),hostPathVolume(hostPath: '/etc/docker/daemon.json', mountPath: '/etc/docker/daemon.json')] )
 {
 node 
 {
@@ -75,19 +76,18 @@ node
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=${DOCKER_REGISTRY}/$APP_NAME-dev-apps/${MS_NAME}:pt-apps --dry-run -o yaml >> Orchestration/deployment-pt.yaml'   
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=${DOCKER_REGISTRY}/$APP_NAME-dev-apps/${MS_NAME}:uat-apps --dry-run -o yaml >> Orchestration/deployment-uat.yaml'	   
        sh 'oc set image --local=true -f Orchestration/deployment.yaml ${MS_NAME}=${DOCKER_REGISTRY}/$APP_NAME-dev-apps/${MS_NAME}:preprod-apps --dry-run -o yaml >> Orchestration/deployment-preprod.yaml'
-       sh 'docker login -u ${User} -p "$(oc whoami -t)" docker-registry-default.40.71.221.144.nip.io' 
    }
 
    stage('Initial Setup')
    {
-	FAILED_STAGE=env.STAGE_NAME
+		FAILED_STAGE=env.STAGE_NAME
        sh 'mvn clean compile'
    }
    if(env.UNIT_TESTING == 'True')
    {
         stage('Unit Testing')
         {
-		FAILED_STAGE=env.STAGE_NAME
+			FAILED_STAGE=env.STAGE_NAME
               sh 'mvn test'
         }
    }
@@ -95,15 +95,15 @@ node
    {
         stage('Code Coverage')
         {
-		FAILED_STAGE=env.STAGE_NAME
-        sh 'mvn cobertura:cobertura'
+			FAILED_STAGE=env.STAGE_NAME
+        	sh 'mvn cobertura:cobertura'
         }
    }
    if(env.CODE_QUALITY == 'True')
    {
         stage('Code Quality Analysis')
         {
-		FAILED_STAGE=env.STAGE_NAME
+			  FAILED_STAGE=env.STAGE_NAME
               sh 'mvn sonar:sonar -Dsonar.host.url="${SONAR_HOST_URL}"'
         }
    }
@@ -111,8 +111,8 @@ node
   {
       stage('Security Testing')
       {
-	      FAILED_STAGE=env.STAGE_NAME
-        sh 'mvn findbugs:findbugs'
+			FAILED_STAGE=env.STAGE_NAME
+			sh 'mvn findbugs:findbugs'
       }	
   }
    
@@ -126,9 +126,17 @@ node
    stage('Tagging Image for Dev')
    {
 	   FAILED_STAGE=env.STAGE_NAME
-	sh'docker pull docker-registry.default.svc:5000/$APP_NAME-dev-apps/$MS_NAME'
-	sh'docker tag  docker-registry.default.svc:5000/$APP_NAME-dev-apps/$MS_NAME:latest ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
-	sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+	  node('selenium')
+    {
+        
+        container('docker')
+        {
+            sh 'git clone https://github.com/abhinav-goyall/meteringservice.git'
+            sh "docker build -t test '/home/jenkins/workspace/${env.JOB_NAME}/${MS_NAME}'"
+            sh 'docker tag test ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+        }
+    }
 	   
    }
    stage('Dev - Deploy Application')
@@ -142,8 +150,16 @@ node
    stage('Tagging Image for Testing')
    { 
 	   FAILED_STAGE=env.STAGE_NAME
-       sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-       sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+	   node('selenium')
+    {
+        
+        container('docker')
+        {
+			sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+            sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+        }
+    }
    }
    if(env.TESTING == 'True')
    {	
@@ -194,8 +210,16 @@ if(env.QA == 'True')
 stage('Tagging Image for PT')
   {
 	  FAILED_STAGE=env.STAGE_NAME
-       sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
-       sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'  
+	node('selenium')
+    {
+        
+        container('docker')
+        {
+			sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+            sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+        }
+    } 
    }
 if(env.PT == 'True')
    {	
@@ -218,8 +242,16 @@ if(env.PT == 'True')
 	stage('Tagging Image for UAT')
    	{
 		FAILED_STAGE=env.STAGE_NAME
-		sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
-       		sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+		node('selenium')
+		{
+			
+			container('docker')
+			{
+				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+				sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+				sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+			}
+		} 
    	}
 	stage('Test - UAT Application')
 	 {
@@ -230,8 +262,17 @@ if(env.PT == 'True')
 	stage('Tagging Image for Pre-Prod')
    	{
 		FAILED_STAGE=env.STAGE_NAME
-		sh'docker tag  ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
-       		sh'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
+		node('selenium')
+		{
+			
+			container('docker')
+			{
+				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+				sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
+				sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
+			}
+		} 
+		
    	}
 	stage('Test - Preprod Application')
 	 {

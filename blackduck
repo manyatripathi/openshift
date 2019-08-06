@@ -1,0 +1,32 @@
+node('maven') {
+    def rc = 0
+    def POLICY_VIOLATION = false
+    def duckyImage = null
+    stage('Clone Repository')
+    {
+        git 'https://github.com/manyatripathi/my-app'
+    }
+    stage('Build')
+    {
+        sh 'mvn clean package'
+    }
+    stage('Synopsys Black Duck Scan')
+    {
+        
+        sh 'curl -O https://detect.synopsys.com/detect.sh'
+        sh 'chmod +x detect.sh'
+        def DETECT_SCRIPT = "./detect.sh --blackduck.url=https://blackduck-ns-blackduck-ns.40.71.221.144.nip.io --blackduck.username=sysadmin --blackduck.password=blackduck --detect.project.name=devops-my-app --detect.project.version.name=pipeline-0.1.${env.BUILD_NUMBER} --blackduck.trust.cert=true "
+        rc = sh(script: "${DETECT_SCRIPT}", returnStatus: true)
+        if (rc == 3)
+        {
+            echo 'BLACK DUCK POLICY VIOLATION'
+            POLICY_VIOLATION = true
+        }
+    }
+    stage('email notification')
+    {
+        emailext body: "${env.BUILD_URL} has result ${currentBuild.result}", subject: "Status of pipeline: ${currentBuild.fullDisplayName}", to: '${mailrecipent}'
+	}
+	
+    
+}

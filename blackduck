@@ -1,3 +1,6 @@
+//Two parameters to be configured --> blackduckurl --> mailrecipient
+
+
 node('maven') {
     def rc = 0
     def POLICY_VIOLATION = false

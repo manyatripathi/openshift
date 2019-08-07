@@ -1,4 +1,4 @@
-//Two parameters to be configured --> blackduckurl --> mailrecipient
+//Parameters to be configured --> blackduckurl --> mailrecipient --> detect_script_url
 
 
 node('maven') {
@@ -8,22 +8,22 @@ node('maven') {
     {
         git 'https://github.com/manyatripathi/my-app'
     }
-    stage('Build')
-    {
-        sh 'mvn clean package'
-    }
     stage('Synopsys Black Duck Scan')
     {
         
-        sh 'curl -O https://detect.synopsys.com/detect.sh'
+        sh 'curl -O ${detect_script_url}'
         sh 'chmod +x detect.sh'
-        def DETECT_SCRIPT = "./detect.sh --blackduck.url=${blackduckurl} --blackduck.username=sysadmin --blackduck.password=blackduck --detect.project.name=devops-my-app --detect.project.version.name=pipeline-0.1.${env.BUILD_NUMBER} --blackduck.trust.cert=true "
-        rc = sh(script: "${DETECT_SCRIPT}", returnStatus: true)
-        if (rc == 3)
+        withCredentials([usernamePassword(credentialsId: 'BlackDuck', passwordVariable: 'password', usernameVariable: 'username')]) 
         {
-            echo 'BLACK DUCK POLICY VIOLATION'
-            POLICY_VIOLATION = true
+            def DETECT_SCRIPT = "./detect.sh --blackduck.url=${blackduckurl} --blackduck.username=$username --blackduck.password=$password --detect.project.name=devops-my-app --detect.project.version.name=pipeline-0.1.${env.BUILD_NUMBER} --blackduck.trust.cert=true "
+            rc = sh(script: "${DETECT_SCRIPT}", returnStatus: true)
+            if (rc == 3)
+            {
+                echo 'BLACK DUCK POLICY VIOLATION'
+                POLICY_VIOLATION = true
+            }    
         }
+        
     }
     stage('email notification')
     {

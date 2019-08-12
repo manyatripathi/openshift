@@ -20,7 +20,14 @@ def readProperties()
 	env.PT = property.PT
 	env.User = property.User
 	env.DOCKER_REGISTRY = property.DOCKER_REGISTRY
-	env.mailrecipent = property.mailrecipent
+	env.mailrecipient = property.mailrecipient
+	env.USER = property.USER
+	env.REPO = property.REPO
+	env.PR_TITLE = property.PR_TITLE
+	env.PR_MSG = property.PR_MSG
+	env.HEAD_BRANCH = property.HEAD_BRANCH
+	env.BASE_BRANCH = property.BASE_BRANCH
+	
 	
     
 }
@@ -91,14 +98,7 @@ node
               sh 'mvn test'
         }
    }
-   if(env.CODE_COVERAGE == 'True')
-   {
-        stage('Code Coverage')
-        {
-			FAILED_STAGE=env.STAGE_NAME
-        	sh 'mvn cobertura:cobertura'
-        }
-   }
+  
    if(env.CODE_QUALITY == 'True')
    {
         stage('Code Quality Analysis')
@@ -106,6 +106,15 @@ node
 			  FAILED_STAGE=env.STAGE_NAME
               sh 'mvn sonar:sonar -Dsonar.host.url="${SONAR_HOST_URL}"'
         }
+   }
+    if(env.CODE_COVERAGE == 'True')
+   {
+      stage('Code Coverage')
+   	{
+		FAILED_STAGE=env.STAGE_NAME
+        sh 'mvn package -Djacoco.percentage.instruction=${EXPECTED_COVERAGE}'
+       
+   	}
    }
   if(env.SECURITY_TESTING == 'True')
   {
@@ -161,6 +170,22 @@ node
         }
     }
    }
+   stage('Pull Request Generation')
+   {
+        
+        withCredentials([usernamePassword(credentialsId: 'PullRequest_credentials', passwordVariable: 'password', usernameVariable: 'username')]) 
+        {
+             sh """
+        curl -k -X POST -u $username:$password https://api.github.com/repos/${USER}/${REPO}/pulls \
+        -d  "{
+            \\"title\\": \\"${PR_TITLE}\\",
+            \\"body\\": \\"${PR_MSG}\\",
+            \\"head\\": \\"${USER}:${HEAD_BRANCH}\\",
+            \\"base\\": \\"${BASE_BRANCH}\\"
+        }\""""
+	    }
+	    emailext body: "Pull Request has been raised. You can review at https://github.com/${USER}/${REPO}/pulls (Please open this in chrome) ", subject: "Pull Request Generated", to: '${mailrecipient}'
+    }
    if(env.TESTING == 'True')
    {	
        stage('Test - Deploy Application')

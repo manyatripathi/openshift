@@ -4,16 +4,16 @@ def readProperties()
 	def properties_file_path = "${workspace}" + "@script/properties.yml"
 	def property = readYaml file: properties_file_path
 	env.APP_NAME = property.APP_NAME
-    env.MS_NAME = property.MS_NAME
-    env.BRANCH = property.BRANCH
-    env.GIT_SOURCE_URL = property.GIT_SOURCE_URL
+    	env.MS_NAME = property.MS_NAME
+    	env.BRANCH = property.BRANCH
+    	env.GIT_SOURCE_URL = property.GIT_SOURCE_URL
 	env.GIT_CREDENTIALS = property.GIT_CREDENTIALS
-    env.SONAR_HOST_URL = property.SONAR_HOST_URL
-    env.CODE_QUALITY = property.CODE_QUALITY
-    env.UNIT_TESTING = property.UNIT_TESTING
-    env.CODE_COVERAGE = property.CODE_COVERAGE
-    env.FUNCTIONAL_TESTING = property.FUNCTIONAL_TESTING
-    env.SECURITY_TESTING = property.SECURITY_TESTING
+    	env.SONAR_HOST_URL = property.SONAR_HOST_URL
+    	env.CODE_QUALITY = property.CODE_QUALITY
+    	env.UNIT_TESTING = property.UNIT_TESTING
+    	env.CODE_COVERAGE = property.CODE_COVERAGE
+    	env.FUNCTIONAL_TESTING = property.FUNCTIONAL_TESTING
+    	env.SECURITY_TESTING = property.SECURITY_TESTING
 	env.PERFORMANCE_TESTING = property.PERFORMANCE_TESTING
 	env.TESTING = property.TESTING
 	env.QA = property.QA
@@ -88,7 +88,7 @@ node
    stage('Initial Setup')
    {
 		FAILED_STAGE=env.STAGE_NAME
-       sh 'mvn clean compile'
+       		sh 'mvn clean compile'
    }
    if(env.UNIT_TESTING == 'True')
    {
@@ -112,7 +112,7 @@ node
       stage('Code Coverage')
    	{
 		FAILED_STAGE=env.STAGE_NAME
-        sh 'mvn package -Djacoco.percentage.instruction=${EXPECTED_COVERAGE}'
+        	sh 'mvn package -Djacoco.percentage.instruction=${EXPECTED_COVERAGE}'
        
    	}
    }
@@ -155,22 +155,7 @@ node
        sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-dev-apps'
        
    }
-	
-   stage('Tagging Image for Testing')
-   { 
-	   FAILED_STAGE=env.STAGE_NAME
-	   node('selenium')
-    {
-        
-        container('docker')
-        {
-			sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
-            sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-        }
-    }
-   }
-   stage('Pull Request Generation')
+    stage('Pull Request Generation')
    {
         
         withCredentials([usernamePassword(credentialsId: 'PullRequest_credentials', passwordVariable: 'password', usernameVariable: 'username')]) 
@@ -185,7 +170,22 @@ node
         }\""""
 	    }
 	    emailext body: "Pull Request has been raised. You can review at https://github.com/${USER}/${REPO}/pulls (Please open this in chrome) ", subject: "Pull Request Generated", to: '${mailrecipient}'
+    }	
+   stage('Tagging Image for Testing')
+   { 
+	   FAILED_STAGE=env.STAGE_NAME
+	   node('selenium')
+    {
+        
+        container('docker')
+        {
+			sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+            sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+        }
     }
+   }
+  
    if(env.TESTING == 'True')
    {	
        stage('Test - Deploy Application')

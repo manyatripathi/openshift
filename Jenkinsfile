@@ -155,156 +155,162 @@ node
        sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-dev-apps'
        
    }
-    stage('Pull Request Generation')
-   {
-        
-        withCredentials([usernamePassword(credentialsId: 'PullRequest_credentials', passwordVariable: 'password', usernameVariable: 'username')]) 
-        {
-             sh """
-        curl -k -X POST -u $username:$password https://api.github.com/repos/${USER}/${REPO}/pulls \
-        -d  "{
-            \\"title\\": \\"${PR_TITLE}\\",
-            \\"body\\": \\"${PR_MSG}\\",
-            \\"head\\": \\"${USER}:${HEAD_BRANCH}\\",
-            \\"base\\": \\"${BASE_BRANCH}\\"
-        }\""""
+    if(env.BRANCH != "master")	
+    {		
+	    stage('Pull Request Generation')
+	   {
+
+		withCredentials([usernamePassword(credentialsId: 'PullRequest_credentials', passwordVariable: 'password', usernameVariable: 'username')]) 
+		{
+		     sh """
+		curl -k -X POST -u $username:$password https://api.github.com/repos/${USER}/${REPO}/pulls \
+		-d  "{
+		    \\"title\\": \\"${PR_TITLE}\\",
+		    \\"body\\": \\"${PR_MSG}\\",
+		    \\"head\\": \\"${USER}:${HEAD_BRANCH}\\",
+		    \\"base\\": \\"${BASE_BRANCH}\\"
+		}\""""
+		    }
+		    emailext body: "Pull Request has been raised. You can review at https://github.com/${USER}/${REPO}/pulls (Please open this in chrome) ", subject: "Pull Request Generated", to: '${mailrecipient}'
+	    }	
+    }	  	    
+   if(env.BRANCH=="master")	
+   {		
+	   stage('Tagging Image for Testing')
+	   { 
+		   FAILED_STAGE=env.STAGE_NAME
+		   node('selenium')
+	    {
+
+		container('docker')
+		{
+				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+		    sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+		    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+		}
 	    }
-	    emailext body: "Pull Request has been raised. You can review at https://github.com/${USER}/${REPO}/pulls (Please open this in chrome) ", subject: "Pull Request Generated", to: '${mailrecipient}'
-    }	
-   stage('Tagging Image for Testing')
-   { 
-	   FAILED_STAGE=env.STAGE_NAME
-	   node('selenium')
-    {
-        
-        container('docker')
-        {
-			sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
-            sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-        }
-    }
-   }
-  
-   if(env.TESTING == 'True')
-   {	
-       stage('Test - Deploy Application')
-       {
-	       FAILED_STAGE=env.STAGE_NAME
-              sh 'oc apply -f Orchestration/deployment-test.yaml -n=${APP_NAME}-test-apps'
-              sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-test-apps'
-       }
+	   }
 
-       node('selenium')
-       {
+	   if(env.TESTING == 'True')
+	   {	
+	       stage('Test - Deploy Application')
+	       {
+		       FAILED_STAGE=env.STAGE_NAME
+		      sh 'oc apply -f Orchestration/deployment-test.yaml -n=${APP_NAME}-test-apps'
+		      sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-test-apps'
+	       }
 
-          stage('Integration Testing')
-          {
+	       node('selenium')
+	       {
+
+		  stage('Integration Testing')
+		  {
+			  FAILED_STAGE=env.STAGE_NAME
+		      container('jnlp')
+		      {
+
+			   checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
+			   sh 'mvn integration-test'
+		      }
+		   }
+		}
+	    }
+
+	if(env.QA == 'True')
+	   {	
+	       stage('Test - Deploy Application')
+	       {
+		       FAILED_STAGE=env.STAGE_NAME
+		       sh 'oc apply -f Orchestration/deployment-qa.yaml -n=${APP_NAME}-qa-apps'
+		       sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-qa-apps'
+	       }
+	       node('selenium')
+	       {
+		    stage('Integration Testing')
+		    {
+			    FAILED_STAGE=env.STAGE_NAME
+			container('jnlp')
+			{
+			     checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
+			     sh 'mvn integration-test'
+			}
+		     }
+		}
+	    }
+	stage('Tagging Image for PT')
+	  {
 		  FAILED_STAGE=env.STAGE_NAME
-              container('jnlp')
-              {
-		      
-                   checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
-                   sh 'mvn integration-test'
-              }
-           }
-        }
-    }
-	 
-if(env.QA == 'True')
-   {	
-       stage('Test - Deploy Application')
-       {
-	       FAILED_STAGE=env.STAGE_NAME
-               sh 'oc apply -f Orchestration/deployment-qa.yaml -n=${APP_NAME}-qa-apps'
-               sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-qa-apps'
-       }
-       node('selenium')
-       {
-            stage('Integration Testing')
-            {
-		    FAILED_STAGE=env.STAGE_NAME
-                container('jnlp')
-                {
-                     checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '${GIT_CREDENTIALS}', url: "${GIT_SOURCE_URL}"]]])
-                     sh 'mvn integration-test'
-                }
-             }
-        }
-    }
-stage('Tagging Image for PT')
-  {
-	  FAILED_STAGE=env.STAGE_NAME
-	node('selenium')
-    {
-        
-        container('docker')
-        {
-			sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-            sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
-            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
-        }
-    } 
-   }
-if(env.PT == 'True')
-   {	
-
-        stage('Test - Deploy Application')
-         {
-		 FAILED_STAGE=env.STAGE_NAME
-                sh 'oc apply -f Orchestration/deployment-pt.yaml -n=${APP_NAME}-pt-apps'
-                sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-pt-apps'
-         }
-
-        stage('Performance Testing')
-        {
-		FAILED_STAGE=env.STAGE_NAME
-                sh 'mvn verify'
-        }
-	     
-    }
-
-	stage('Tagging Image for UAT')
-   	{
-		FAILED_STAGE=env.STAGE_NAME
 		node('selenium')
+	    {
+
+		container('docker')
 		{
-			
-			container('docker')
-			{
-				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
-				sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
-				sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
-			}
-		} 
-   	}
-	stage('Test - UAT Application')
-	 {
-		 FAILED_STAGE=env.STAGE_NAME
-		sh 'oc apply -f Orchestration/deployment-uat.yaml -n=${APP_NAME}-uat-apps'
-       		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-uat-apps'
-	 }
-	stage('Tagging Image for Pre-Prod')
-   	{
-		FAILED_STAGE=env.STAGE_NAME
-		node('selenium')
+				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+		    sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+		    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+		}
+	    } 
+	   }
+	if(env.PT == 'True')
+	   {	
+
+		stage('Test - Deploy Application')
+		 {
+			 FAILED_STAGE=env.STAGE_NAME
+			sh 'oc apply -f Orchestration/deployment-pt.yaml -n=${APP_NAME}-pt-apps'
+			sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-pt-apps'
+		 }
+
+		stage('Performance Testing')
 		{
-			
-			container('docker')
+			FAILED_STAGE=env.STAGE_NAME
+			sh 'mvn verify'
+		}
+
+	    }
+
+		stage('Tagging Image for UAT')
+		{
+			FAILED_STAGE=env.STAGE_NAME
+			node('selenium')
 			{
-				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
-				sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
-				sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
-			}
-		} 
-		
-   	}
-	stage('Test - Preprod Application')
-	 {
-		 FAILED_STAGE=env.STAGE_NAME
-		sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
-       		sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-preprod-apps'
-	 }
+
+				container('docker')
+				{
+					sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+					sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+					sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+				}
+			} 
+		}
+		stage('Test - UAT Application')
+		 {
+			 FAILED_STAGE=env.STAGE_NAME
+			sh 'oc apply -f Orchestration/deployment-uat.yaml -n=${APP_NAME}-uat-apps'
+			sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-uat-apps'
+		 }
+		stage('Tagging Image for Pre-Prod')
+		{
+			FAILED_STAGE=env.STAGE_NAME
+			node('selenium')
+			{
+
+				container('docker')
+				{
+					sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps'
+					sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:uat-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
+					sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:preprod-apps'
+				}
+			} 
+
+		}
+		stage('Test - Preprod Application')
+		 {
+			 FAILED_STAGE=env.STAGE_NAME
+			sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
+			sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-preprod-apps'
+		 }
+   	   }
 	}
 	catch(e){
 		echo "Pipeline has failed"

@@ -136,16 +136,16 @@ node
    {
 	   FAILED_STAGE=env.STAGE_NAME
 	  node('selenium')
-    {
+    	{
         
-        container('docker')
-        {
-            sh 'git clone https://github.com/abhinav-goyall/meteringservice.git'
-            sh "docker build -t test '/home/jenkins/workspace/${env.JOB_NAME}/${MS_NAME}'"
-            sh 'docker tag test ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
-            sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
-        }
-    }
+		container('docker')
+		{
+		    sh 'git clone https://github.com/abhinav-goyall/meteringservice.git'
+		    sh "docker build -t test '/home/jenkins/workspace/${env.JOB_NAME}/${MS_NAME}'"
+		    sh 'docker tag test ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+		    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+		}
+	 }
 	   
    }
    stage('Dev - Deploy Application')
@@ -155,8 +155,8 @@ node
        sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-dev-apps'
        
    }
-    if(env.BRANCH != "master")	
-    {		
+    /*if(env.BRANCH != "master")	
+    {	*/	
 	    stage('Pull Request Generation')
 	   {
 
@@ -173,22 +173,22 @@ node
 		    }
 		    emailext body: "Pull Request has been raised. You can review at https://github.com/${USER}/${REPO}/pulls (Please open this in chrome) ", subject: "Pull Request Generated", to: '${mailrecipient}'
 	    }	
-    }	  	    
+   /* }	  	    
    if(env.BRANCH=="master")	
-   {		
+   {	*/	
 	   stage('Tagging Image for Testing')
 	   { 
 		   FAILED_STAGE=env.STAGE_NAME
 		   node('selenium')
-	    {
+		    {
 
-		container('docker')
-		{
-				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
-		    sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-		    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-		}
-	    }
+			container('docker')
+			{
+					sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps'
+			    sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:dev-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+			    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+			}
+		    }
 	   }
 
 	   if(env.TESTING == 'True')
@@ -239,17 +239,17 @@ node
 	    }
 	stage('Tagging Image for PT')
 	  {
-		  FAILED_STAGE=env.STAGE_NAME
-		node('selenium')
-	    {
+		    FAILED_STAGE=env.STAGE_NAME
+		    node('selenium')
+		    {
 
-		container('docker')
-		{
-				sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
-		    sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
-		    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
-		}
-	    } 
+			container('docker')
+			{
+					sh 'docker pull ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps'
+			    sh 'docker tag ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:test-apps ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+			    sh 'docker push ${DOCKER_REGISTRY}/$APP_NAME-dev-apps/$MS_NAME:pt-apps'
+			}
+		    } 
 	   }
 	if(env.PT == 'True')
 	   {	
@@ -310,7 +310,7 @@ node
 			sh 'oc apply -f Orchestration/deployment-preprod.yaml -n=${APP_NAME}-preprod-apps'
 			sh 'oc apply -f Orchestration/service.yaml -n=${APP_NAME}-preprod-apps'
 		 }
-   	   }
+   	   /*}*/
 	}
 	catch(e){
 		echo "Pipeline has failed"
